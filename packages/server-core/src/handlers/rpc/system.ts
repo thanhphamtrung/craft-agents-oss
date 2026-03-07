@@ -174,9 +174,14 @@ export function registerSystemCoreHandlers(server: RpcServer, deps: HandlerDeps)
     try {
       const parsed = new URL(url)
 
-      // craftagents:// URLs require the GUI deep-link handler (Electron only)
+      // craftagents:// URLs are handled by the GUI host (Electron) via onInternalUrl callback
       if (parsed.protocol === 'craftagents:') {
-        deps.platform.logger.info('[OPEN_URL] craftagents:// URLs require GUI deep-link handler — skipping in core')
+        if (!deps.onInternalUrl) {
+          deps.platform.logger.info('[OPEN_URL] No internal URL handler — skipping craftagents:// URL')
+          return
+        }
+        deps.platform.logger.info('[OPEN_URL] Handling as internal URL')
+        await deps.onInternalUrl(url, ctx.clientId)
         return
       }
 

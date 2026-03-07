@@ -25,4 +25,6 @@ export interface HandlerDeps<
   windowManager?: TWindowManager
   browserPaneManager?: TBrowserPaneManager
   oauthFlowStore: TOAuthFlowStore
+  /** Handle craftagents:// internal URLs. Provided by GUI hosts (Electron). */
+  onInternalUrl?: (url: string, clientId?: string) => Promise<void>
 }

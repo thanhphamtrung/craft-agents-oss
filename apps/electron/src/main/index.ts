@@ -619,6 +619,13 @@ app.whenReady().then(async () => {
         windowManager,
         browserPaneManager,
         oauthFlowStore,
+        onInternalUrl: async (url, clientId) => {
+          if (!windowManager) return
+          const wm = windowManager
+          const { handleDeepLink } = await import('./deep-link')
+          const resolver = (wcId: number) => wm.getClientIdForWindow(wcId)
+          await handleDeepLink(url, wm, server.push.bind(server), resolver, clientId)
+        },
       }
 
       // Register RPC handlers (must happen before window creation)
