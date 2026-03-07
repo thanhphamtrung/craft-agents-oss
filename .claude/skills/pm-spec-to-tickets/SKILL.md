@@ -1,12 +1,12 @@
 ---
 name: ck:pm-spec-to-tickets
-description: "Read Notion specs and create Jira epics + stories with two-checkpoint approval flow. Use for converting PRDs, feature specs, or requirements docs into actionable Jira tickets."
+description: "Read Notion specs and create Jira epics, stories, tasks, and bugs with two-checkpoint approval flow. Use for converting PRDs, feature specs, or requirements docs into actionable Jira tickets."
 argument-hint: "[Notion URL, page name, or search query]"
 ---
 
 # pm-spec-to-tickets
 
-Converts Notion specs/PRDs into Jira epics + stories via a two-checkpoint human-in-the-loop flow.
+Converts Notion specs/PRDs into Jira epics, stories, tasks, and bugs via a two-checkpoint human-in-the-loop flow.
 
 ## Prerequisites
 
@@ -64,7 +64,7 @@ If user adjusts: incorporate changes into working interpretation.
 - Ask user for **Jira project key** (no hardcoded default)
 - Call `getVisibleJiraProjects` to list available projects for reference
 - Call `getJiraProjectIssueTypesMetadata` to get issue types
-- Call `getJiraIssueTypeMetaWithFields` for Epic and Story field schemas
+- Call `getJiraIssueTypeMetaWithFields` for Epic, Story, Task, and Bug field schemas
 - See `references/jira-field-mapping.md` for field mapping guidance
 
 ### Step 4: Dedup Check (if Kioku available)
@@ -86,15 +86,21 @@ Present proposed tickets:
 ## Ticket Proposal
 
 **Epic:** [Title from spec]
-  Description: [Summary + link to Notion page]
+  Objective: [What this epic aims to achieve]
+  Scope: [Included / Not Included]
+  Source: [Notion page link]
 
-  **Story 1:** [Feature/requirement name]
-    Description: [Detailed from spec]
-    Acceptance Criteria:
-    - [criterion]
-    - [criterion]
+  **Story 1:** [User-facing feature name]
+    User Story: As a [role], when [trigger], I want [action] so that [value]
+    Acceptance Criteria: [criteria]
 
-  **Story 2:** ...
+  **Task 1:** [Technical/internal work name]
+    Summary: [What needs to be done]
+    Acceptance Criteria: [criteria]
+
+  **Bug 1:** [Defect description]
+    Impact: [Who is affected and how]
+    Steps to Reproduce: [steps]
 
 [Dedup warnings if any]
 ```
@@ -106,12 +112,12 @@ Ask: **"Create these tickets? Any changes needed?"**
 ### Step 6: Create Tickets
 
 1. Create **Epic** via `createJiraIssue` (include Notion page link in description)
-2. Create **Stories** linked to Epic via `createJiraIssue`
+2. Create **Stories**, **Tasks**, and/or **Bugs** linked to Epic via `createJiraIssue`
 3. Index each in Kioku (if available):
    ```bash
    python3 $KIOKU --db $DB store --source jira --source-id [KEY] --type ticket \
      --title "[title]" --content "[description]" --status open \
-     --metadata '{"issue_type":"[Epic|Story]","project":"[KEY]"}'
+     --metadata '{"issue_type":"[Epic|Story|Task|Bug]","project":"[KEY]"}'
    ```
 4. Link Notion page to Epic in Kioku:
    ```bash
