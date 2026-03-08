@@ -130,6 +130,15 @@
   has_scripts: true
   name: copywriting
   path: copywriting/SKILL.md
+- argument_hint: '[install|update|list]'
+  category: dev-tools
+  description: Install skills from the craft-agents-oss catalog into a Craft Desktop
+    workspace. Use when the user wants to set up skills in Craft Desktop, migrate skills
+    from Claude Code to Craft, or manage installed Craft skills.
+  has_references: false
+  has_scripts: false
+  name: craft-skill-installer
+  path: craft-skill-installer/SKILL.md
 - argument_hint: '[query or schema task]'
   category: database
   description: Design schemas, write queries for MongoDB and PostgreSQL. Use for database
