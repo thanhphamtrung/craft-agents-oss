@@ -138,7 +138,7 @@ def cmd_store(args):
 
 
 def cmd_search(args):
-    """Search items using FTS5 BM25 ranking."""
+    """Search items using FTS5 BM25 ranking with optional filters."""
     query = args.query.strip()
     if not query:
         print(json.dumps({"ok": True, "count": 0, "results": []}))
@@ -148,15 +148,31 @@ def cmd_search(args):
     fail_if_not_initialized(conn)
     limit = args.limit or 10
 
+    # Build optional filter clauses on the real items table
+    filters = []
+    params = [query]
+    if args.source:
+        filters.append("i.source = ?")
+        params.append(args.source)
+    if args.type:
+        filters.append("i.type = ?")
+        params.append(args.type)
+    if args.status:
+        filters.append("i.status = ?")
+        params.append(args.status)
+
+    where_extra = (" AND " + " AND ".join(filters)) if filters else ""
+    params.append(limit)
+
     try:
         cursor = conn.execute(
-            """SELECT i.*, bm25(items_fts) AS rank
+            f"""SELECT i.*, bm25(items_fts) AS rank
                FROM items_fts fts
                JOIN items i ON i.id = fts.rowid
-               WHERE items_fts MATCH ?
+               WHERE items_fts MATCH ?{where_extra}
                ORDER BY rank
                LIMIT ?""",
-            (query, limit),
+            params,
         )
         results = [dict(row) for row in cursor.fetchall()]
         print(json.dumps({"ok": True, "count": len(results), "results": results}))
@@ -259,6 +275,9 @@ def main():
     p_search = sub.add_parser("search", help="Search items via BM25 full-text search")
     p_search.add_argument("--query", required=True, help="Search query")
     p_search.add_argument("--limit", type=int, default=10, help="Max results")
+    p_search.add_argument("--source", help="Filter by source (jira|slack|notion)")
+    p_search.add_argument("--type", help="Filter by type (ticket|message|doc|spec)")
+    p_search.add_argument("--status", help="Filter by status (open|closed|in_progress)")
 
     # get
     p_get = sub.add_parser("get", help="Get item by source + source_id")
