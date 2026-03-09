@@ -54,6 +54,7 @@ Skills are grouped by category for easier browsing:
 | `backend` | backend-development, better-auth, payment-integration |
 | `frontend` | frontend-design, frontend-development, threejs, ui-styling |
 | `frameworks` | mobile-development, shopify, web-frameworks |
+| `project-management` | pm-search, pm-sync-jira, pm-spec-to-tickets |
 | `utilities` | debug, fix, cook, code-review, test, plan |
 | `dev-tools` | git, docs-seeker, repomix, scout, worktree |
 | `infrastructure` | devops |
