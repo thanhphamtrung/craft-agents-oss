@@ -85,6 +85,9 @@ export class McpClientPool {
   /** Proxy tool name → { slug, originalName } (e.g., "mcp__linear__createIssue" → { slug: "linear", originalName: "createIssue" }) */
   private proxyTools = new Map<string, { slug: string; originalName: string }>();
 
+  /** Stored configs keyed by source slug — used to detect when a client needs reconnection (e.g., token refresh) */
+  private clientConfigs = new Map<string, SdkMcpServerConfig>();
+
   /** Optional debug logger */
   private debugFn: ((msg: string) => void) | undefined;
 
@@ -152,6 +155,7 @@ export class McpClientPool {
       return;
     }
     await this.registerClient(slug, new CraftMcpClient(clientConfig));
+    this.clientConfigs.set(slug, config);
   }
 
   /**
@@ -177,6 +181,7 @@ export class McpClientPool {
       if (info.slug === slug) this.proxyTools.delete(proxyName);
     }
     this.toolCache.delete(slug);
+    this.clientConfigs.delete(slug);
     this.debug(`Disconnected source: ${slug}`);
   }
 
@@ -189,6 +194,7 @@ export class McpClientPool {
     this.clients.clear();
     this.toolCache.clear();
     this.proxyTools.clear();
+    this.clientConfigs.clear();
     this.debug('Disconnected all MCP clients');
   }
 
@@ -238,13 +244,27 @@ export class McpClientPool {
       }
     }
 
-    // Connect new MCP sources
+    // Connect new MCP sources, and reconnect existing ones whose config changed
+    // (e.g., OAuth token was refreshed — the Authorization header is baked into
+    // the HTTP transport at construction time and cannot be updated in-place)
     for (const [slug, config] of Object.entries(filteredMcp)) {
       if (!currentSlugs.has(slug)) {
+        // New source — connect
         try {
           await this.connect(slug, config);
         } catch (err) {
           this.debug(`Failed to connect MCP source ${slug}: ${err instanceof Error ? err.message : String(err)}`);
+          failures.push(slug);
+        }
+      } else if (this.hasConfigChanged(slug, config)) {
+        // Existing source whose config changed (token refresh, URL change, etc.)
+        // Disconnect old client and reconnect with fresh config
+        this.debug(`Config changed for ${slug}, reconnecting with updated credentials`);
+        try {
+          await this.disconnect(slug);
+          await this.connect(slug, config);
+        } catch (err) {
+          this.debug(`Failed to reconnect MCP source ${slug}: ${err instanceof Error ? err.message : String(err)}`);
           failures.push(slug);
         }
       }
@@ -264,6 +284,39 @@ export class McpClientPool {
 
     this.onToolsChanged?.();
     return failures;
+  }
+
+  /**
+   * Check if an MCP source's config has changed since it was connected.
+   * Compares headers (auth tokens) and URL to detect token refreshes.
+   */
+  private hasConfigChanged(slug: string, newConfig: SdkMcpServerConfig): boolean {
+    const oldConfig = this.clientConfigs.get(slug);
+    if (!oldConfig) return false;
+
+    // Compare URL
+    if ('url' in oldConfig && 'url' in newConfig && oldConfig.url !== newConfig.url) {
+      return true;
+    }
+
+    // Compare headers (this is where OAuth tokens live as Authorization: Bearer <token>)
+    const oldHeaders = ('headers' in oldConfig ? oldConfig.headers : undefined) as Record<string, string> | undefined;
+    const newHeaders = ('headers' in newConfig ? newConfig.headers : undefined) as Record<string, string> | undefined;
+
+    // If one has headers and the other doesn't, config changed
+    if ((!oldHeaders) !== (!newHeaders)) return true;
+
+    // Compare header values
+    if (oldHeaders && newHeaders) {
+      const oldKeys = Object.keys(oldHeaders);
+      const newKeys = Object.keys(newHeaders);
+      if (oldKeys.length !== newKeys.length) return true;
+      for (const key of oldKeys) {
+        if (oldHeaders[key] !== newHeaders[key]) return true;
+      }
+    }
+
+    return false;
   }
 
   // ============================================================
